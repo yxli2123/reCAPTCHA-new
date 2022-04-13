@@ -8,6 +8,7 @@ import numpy as np
 import colorsys
 from tqdm import tqdm
 
+random.seed(0)
 class ImageChar:
     def __init__(self,
                  backgroundDir='./bg_pics_small',
@@ -16,6 +17,7 @@ class ImageChar:
         self.fontDir = fontDir
         self.backgroundDir = backgroundDir
         self.image = None
+        self.temp_image = None
         self.pos = None
         self.fontSize = None
 
@@ -25,7 +27,7 @@ class ImageChar:
         
         with Image.open(background) as im:
             self.image = im.copy().convert('RGBA')
-            
+        self.temp_image = Image.new('RGBA', self.image.size, (0, 0, 0, 0))
         self.fontSize = int(self.image.height * 0.15) 
 
     def randomPosition(self, num_char, min_dist=True):
@@ -72,6 +74,7 @@ class ImageChar:
         del draw
         w = txt.rotate(rotate, expand=True)
         self.image.paste(w, pos, w)
+        self.temp_image.paste(w, pos, w)
         return (pos[0], pos[1], w.height, w.width)
 
     def generate(self, text):
@@ -86,11 +89,12 @@ class ImageChar:
             bbox.append(self.drawChar(pos[i], rotate[i], text[i], random.choice(fonts)))
         return bbox
 
-    def save(self, path):
-        self.image.save(path, 'png')
+    def save(self, path1, path2):
+        self.image.save(path1, 'png')
+        self.temp_image.save(path2, 'png')
 
 
-def generate(name='captcha_single', split='train', num=1000):
+def generate(name='captcha_click', split='train', num=1000):
     data_dir = f"./image/{name}"
     split_dir = os.path.join(data_dir, split)
     if not os.path.exists(split_dir):
@@ -107,7 +111,8 @@ def generate(name='captcha_single', split='train', num=1000):
     print(f'| Generating {name} {split}')
     for i in tqdm(range(num)):
         data_id = i
-        img_path = f"{split_dir}/{split}_{data_id:05d}.png"
+        img_path1 = f"{split_dir}/{split}_{data_id:05d}.png"
+        img_path2 = f"{split_dir}/{split}_{data_id:05d}_temp.png"
         num_char = random.choice([4, 5])
         word = ''
         for _ in range(num_char):
@@ -117,8 +122,9 @@ def generate(name='captcha_single', split='train', num=1000):
                             'word_label': word,
                             'word_label_id': [word_dict[w] for w in word],
                             'bbox': bbox,
-                            'image_path': f"{split}_{data_id:05d}.png"})
-        ic.save(img_path)
+                            'image_path': f"{split}_{data_id:05d}.png",
+                            'temp_image_path': f"{split}_{data_id:05d}_temp.png"})
+        ic.save(img_path1, img_path2)
 
     with open(os.path.join(data_dir, f'{split}_info.json'), 'w') as info_file:
         json.dump(index_info, info_file, indent=4)
