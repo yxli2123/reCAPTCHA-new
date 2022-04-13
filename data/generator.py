@@ -58,8 +58,10 @@ class ImageChar:
 
     def drawChar(self, pos, rotate, char, font, color=None):
         size = int(1.5 * self.fontSize)
-        txt=Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        txt = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        txt_temp = Image.new('RGBA', (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(txt)
+        draw_temp = ImageDraw.Draw(txt_temp)
         if color==None:
             img_data = np.asarray(self.image)
             bg_color = np.average(np.average(img_data[pos[1]:pos[1]+size, pos[0]:pos[0]+size], axis=0), axis=0)
@@ -71,10 +73,13 @@ class ImageChar:
         elif len(color)==3:
             color = (color[0], color[1], color[2], 255)
         draw.text((0, 0), char, font=font, fill=color)
+        draw_temp.text((0, 0), char, font=font, fill=(255, 255, 255, 255))
         del draw
+        del draw_temp
         w = txt.rotate(rotate, expand=True)
+        w_temp = txt_temp.rotate(rotate, expand=True)
         self.image.paste(w, pos, w)
-        self.temp_image.paste(w, pos, w)
+        self.temp_image.paste(w_temp, pos, w_temp)
         return (pos[0], pos[1], w.height, w.width)
 
     def generate(self, text):
@@ -133,7 +138,7 @@ def generate(name='captcha_click', split='train', num=1000):
 
 if __name__ == '__main__':
     generate("captcha_click", "test", 1000)
-    generate("captcha_click", "valid", 2000)
-    generate("captcha_click", "train", 30000)
+    # generate("captcha_click", "valid", 2000)
+    # generate("captcha_click", "train", 30000)
 
     
