@@ -9,8 +9,9 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 
 from model import ResNet
+from unet import UNet
 from utils import *
-from dataloader_cpu import LineCAPTCHA
+from dataloader import LineCAPTCHA
 
 
 def main():
@@ -40,6 +41,7 @@ def main():
 
     # Model Parameters
     parser.add_argument('--VM_name',        type=str,   default='ResNet101')
+    parser.add_argument('--num_cls',        type=int,   default=2)
     parser.add_argument('--LM_name',        type=str,   default='bert-base-chinese')
     parser.add_argument('--ckpt',           type=str,   default=None)
 
@@ -76,7 +78,7 @@ def main():
         #           MODEL          #
         ############################
         # Build Models
-        model = ResNet(num_character=args.num_char)  # ResNet50
+        model = UNet(n_channels=3, n_classes=args.num_cls)  # ResNet50
 
         # Checkpoint
         if args.ckpt:
@@ -87,7 +89,7 @@ def main():
         ############################
         #         OPTIMIZER        #
         ############################
-        criterion = nn.L1Loss()
+        criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr)
         optimizer.zero_grad()
 
@@ -109,8 +111,9 @@ def main():
                 batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
 
                 # Predict
-                y_pr = model(batch['image'])  # (B, num_char, num_cls)
-                y_gt = batch['mask']          # (B, num_char)
+                y_pr = model(batch['image'])        # (B, num_cls, H, W)
+                y_pr = y_pr.transpose(0, 2, 3, 1)   # (B, H, W, num_cls)
+                y_gt = batch['mask']                # (B, H, W)
 
                 # Compute Loss and Backward Pass
                 loss = criterion(y_pr, y_gt)
@@ -121,9 +124,8 @@ def main():
 
                 if train_iter % args.print_interval == 0:
                     writer.add_scalar('train/loss', loss.item(), train_iter)
-                    B, num_char, C, H, W = batch['image'].shape
-                    writer.add_images('train/images', batch['image'].reshape(B * num_char, C, H, W), train_iter)
-                    writer.add_images('train/mask', batch['mask'].reshape(B * num_char, C, H, W), train_iter)
+                    writer.add_images('train/images', batch['image'], train_iter)
+                    writer.add_images('train/mask', batch['mask'], train_iter)
 
                 if train_iter % args.valid_interval == 0 or t == train_loader.__len__() - 1:
                     metric = test(valid_loader, model, device, args)
@@ -155,9 +157,10 @@ def main():
 
 
 @torch.no_grad()
-def test(dataloader, model, device, args):
+def test(dataloader, model, device, criterion, args):
     y_pr_list = []
     y_gt_list = []
+    loss_list = []
     model = model.to(device)
     for t, batch in enumerate(dataloader):
         model.eval()
@@ -165,20 +168,31 @@ def test(dataloader, model, device, args):
         batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
 
         # Predict
-        y_pr = model(batch['image'])  # (B, num_char, num_cls)
-        y_pr[y_pr >= 0.5] = 1
-        y_pr[y_pr <= 0.5] = 0
-        y_gt = batch['label']         # (B, num_char)
+        y_pr = model(batch['image'])       # (B, num_cls, H, W)
+        y_gt = batch['mask']               # (B, H, W)
+
+        # Loss
+        loss = criterion(y_pr.transpose(0, 2, 3, 1), y_gt)
+        loss_list.append(loss.item())
+
+        # Classify
+        y_pr = torch.argmax(y_pr, dim=1)  # (B, H, W)
 
         y_pr_list.append(y_pr)
         y_gt_list.append(y_gt)
 
-    y_pr = torch.cat(y_pr_list, dim=0)  # (N*num_char, num_cls)
-    y_gt = torch.cat(y_gt_list, dim=0)  # (N*num_char)
+    y_pr = torch.cat(y_pr_list, dim=0)  # (N, H, W)
+    y_gt = torch.cat(y_gt_list, dim=0)  # (N, H, W)
+    loss = torch.tensor(loss_list).mean().item()
+
     metric = evaluate_segmentation(y_gt, y_pr)
+    metric['loss'] = loss
 
     return metric
 
 
 if __name__ == '__main__':
-    main()
+    a = torch.randn(4, 2, 6, 8)
+    b = torch.argmax(a, dim=1)
+    print(a.shape, a)
+    print(b.shape, b)
