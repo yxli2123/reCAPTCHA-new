@@ -65,8 +65,8 @@ def main():
         ############################
         #            DATA          #
         ############################
-        train_set = LineCAPTCHA(args.data_dir, split='train', num_character=args.num_char)
-        valid_set = LineCAPTCHA(args.data_dir, split='valid', num_character=args.num_char)
+        train_set = LineCAPTCHA(args.data_dir, split='train')
+        valid_set = LineCAPTCHA(args.data_dir, split='valid')
         train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=args.threads, shuffle=True,
                                   drop_last=True)
         valid_loader = DataLoader(valid_set, batch_size=batch_size, num_workers=args.threads, shuffle=True,
@@ -87,7 +87,7 @@ def main():
         ############################
         #         OPTIMIZER        #
         ############################
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.L1Loss()
         optimizer = torch.optim.Adam(model.parameters(), lr)
         optimizer.zero_grad()
 
@@ -110,12 +110,9 @@ def main():
 
                 # Predict
                 y_pr = model(batch['image'])  # (B, num_char, num_cls)
-                y_gt = batch['label']         # (B, num_char)
+                y_gt = batch['mask']          # (B, num_char)
 
                 # Compute Loss and Backward Pass
-                B, num_char, num_cls = y_pr.shape
-                y_pr = y_pr.reshape(B * num_char, -1)
-                y_gt = y_gt.reshape(B * num_char)
                 loss = criterion(y_pr, y_gt)
 
                 optimizer.zero_grad()
@@ -125,23 +122,20 @@ def main():
                 if train_iter % args.print_interval == 0:
                     writer.add_scalar('train/loss', loss.item(), train_iter)
                     B, num_char, C, H, W = batch['image'].shape
-                    writer.add_images('train/images', batch['image'].reshape(B*num_char, C, H, W), train_iter)
+                    writer.add_images('train/images', batch['image'].reshape(B * num_char, C, H, W), train_iter)
+                    writer.add_images('train/mask', batch['mask'].reshape(B * num_char, C, H, W), train_iter)
 
                 if train_iter % args.valid_interval == 0 or t == train_loader.__len__() - 1:
                     metric = test(valid_loader, model, device, args)
                     writer.add_scalar('valid/loss', metric['loss'], train_iter)
-                    writer.add_scalar('valid/acc_single', metric['acc_single'], train_iter)
-                    writer.add_scalar('valid/acc_pair', metric['acc_pair'], train_iter)
-                    writer.add_scalar('valid/acc_topk', metric['acc_topk'], train_iter)
-                    # random_sample = random.choices(metric['results'], k=10)
-                    # for k, sample in random_sample:
-                    #    writer.add_text(f'valid/results{k}', str(random_sample), train_iter)
+                    writer.add_scalar('valid/accuracy', metric['accuracy'], train_iter)
+                    writer.add_scalar('valid/f1_score', metric['f1_score'], train_iter)
 
                 if train_iter % args.save_interval == 0:
                     torch.save(model.state_dict(), os.path.join(log_dir, f"{train_iter}.pth"))
 
     elif args.mode == 'test':
-        test_set = LineCAPTCHA(args.data_dir, split='test', num_character=args.num_char)
+        test_set = LineCAPTCHA(args.data_dir, split='test')
         test_loader = DataLoader(test_set, batch_size=args.batch_size, num_workers=args.threads, shuffle=False,
                                  drop_last=False)
 
@@ -172,16 +166,16 @@ def test(dataloader, model, device, args):
 
         # Predict
         y_pr = model(batch['image'])  # (B, num_char, num_cls)
+        y_pr[y_pr >= 0.5] = 1
+        y_pr[y_pr <= 0.5] = 0
         y_gt = batch['label']         # (B, num_char)
 
-        # Compute Loss and Backward Pass
-        B, num_char, num_cls = y_pr.shape
-        y_pr_list.append(y_pr.reshape(B * num_char, -1))
-        y_gt_list.append(y_gt.reshape(B * num_char))
+        y_pr_list.append(y_pr)
+        y_gt_list.append(y_gt)
 
     y_pr = torch.cat(y_pr_list, dim=0)  # (N*num_char, num_cls)
     y_gt = torch.cat(y_gt_list, dim=0)  # (N*num_char)
-    metric = evaluate(y_gt, y_pr, args.num_char, args.topk)
+    metric = evaluate_segmentation(y_gt, y_pr)
 
     return metric
 

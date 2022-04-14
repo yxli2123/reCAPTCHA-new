@@ -3,6 +3,7 @@ import numpy as np
 import random
 import torch.nn.functional as F
 import json
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
 
 
 def setup_seed(seed):
@@ -44,6 +45,20 @@ def prob(w1, w2):
     # print(p_w1_given_w2, p_w2_given_w1)
 
     return p_w1_given_w2, p_w2_given_w1
+
+
+def evaluate_segmentation(y_gt, y_pr):
+    y_gt, y_pr = y_gt.flatten(), y_pr.flatten()
+
+    matrix = confusion_matrix(y_gt, y_pr)
+    acc = accuracy_score(y_gt, y_pr)
+    f1 = f1_score(y_gt, y_pr)
+
+    metric = {"confusion_matrix": matrix,
+              "accuracy": acc,
+              "f1_score": f1}
+
+    return metric
 
 
 def evaluate(y_gt, y_pr, num_character=1, top_k=1, decode_file='../data/text/decode.json'):
