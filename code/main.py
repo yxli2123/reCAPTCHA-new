@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
-from model import ResNet
+#from model import ResNet
 from unet import UNet
 from utils import *
 from dataloader import LineCAPTCHA
@@ -112,20 +112,24 @@ def main():
 
                 # Predict
                 y_pr = model(batch['image'])        # (B, num_cls, H, W)
-                y_pr = y_pr.transpose(0, 2, 3, 1)   # (B, H, W, num_cls)
+                y_pr = y_pr.permute(0, 2, 3, 1)     # (B, H, W, num_cls)
                 y_gt = batch['mask']                # (B, H, W)
 
                 # Compute Loss and Backward Pass
-                loss = criterion(y_pr, y_gt)
+                B, H, W, num_cls = y_pr.shape
+                y_pr_flatten = y_pr.reshape(B * H * W, num_cls)
+                y_gt_flatten = y_gt.flatten()
+                loss = criterion(y_pr_flatten, y_gt_flatten)
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 if train_iter % args.print_interval == 0:
+                    print(loss.item())
                     writer.add_scalar('train/loss', loss.item(), train_iter)
                     writer.add_images('train/images', batch['image'], train_iter)
-                    writer.add_images('train/mask', batch['mask'], train_iter)
+                    writer.add_images('train/mask', batch['mask'].unsqueeze(1), train_iter)
 
                 if train_iter % args.valid_interval == 0 or t == train_loader.__len__() - 1:
                     metric = test(valid_loader, model, device, args)
@@ -172,11 +176,15 @@ def test(dataloader, model, device, criterion, args):
         y_gt = batch['mask']               # (B, H, W)
 
         # Loss
-        loss = criterion(y_pr.transpose(0, 2, 3, 1), y_gt)
+        B, num_cls, H, W = y_pr.shape
+        y_pr = y_pr.permute(0, 2, 3, 1)
+        y_pr_flatten = y_pr.shape(B * H * W, num_cls)
+        y_gt_flatten = y_gt.flatten()
+        loss = criterion(y_pr_flatten, y_gt_flatten)
         loss_list.append(loss.item())
 
         # Classify
-        y_pr = torch.argmax(y_pr, dim=1)  # (B, H, W)
+        y_pr = torch.argmax(y_pr, dim=3)  # (B, H, W)
 
         y_pr_list.append(y_pr)
         y_gt_list.append(y_gt)
@@ -192,7 +200,5 @@ def test(dataloader, model, device, criterion, args):
 
 
 if __name__ == '__main__':
-    a = torch.randn(4, 2, 6, 8)
-    b = torch.argmax(a, dim=1)
-    print(a.shape, a)
-    print(b.shape, b)
+    main()
+

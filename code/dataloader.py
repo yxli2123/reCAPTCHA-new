@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-from torchvision.transforms import PILToTensor
+from torchvision import transforms
 
 import os
 from PIL import Image
@@ -15,7 +15,8 @@ class LineCAPTCHA(Dataset):
 
         # self.data = []
         # self.load_data()
-        self.transform = PILToTensor()
+        self.transform = transforms.Compose([transforms.Resize([200, 320]),
+                                             transforms.ToTensor()])
         info_file = open(self.info_file)
         self.data_info = json.load(info_file)
 
@@ -30,14 +31,15 @@ class LineCAPTCHA(Dataset):
         # Load Images
         image_path = os.path.join(self.image_dir, self.split, sample['image_path'])
         image = self.transform(Image.open(image_path)) / 255.0
+        image = image[0: 3]
 
         # Box
         boxes = sample['bbox']
-        boxes = torch.tensor(boxes, dtype=torch.float)  # (N, 4), (x0, y0, x_offset, y_offset)
+        boxes = torch.tensor(boxes)  # (N, 4), (x0, y0, x_offset, y_offset)
 
         # Load Images
         C, H, W = image.shape
-        mask = torch.zeros(H, W)
+        mask = torch.zeros(H, W).type(torch.LongTensor)
         for box in boxes:
             mask[box[1]: box[1] + box[3], box[0]: box[0] + box[2]] = 1
 
