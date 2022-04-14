@@ -7,6 +7,8 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 import torch.nn as nn
+import torchvision
+
 
 #from model import ResNet
 from unet import UNet
@@ -132,7 +134,7 @@ def main():
                     writer.add_images('train/mask', batch['mask'].unsqueeze(1), train_iter)
 
                 if train_iter % args.valid_interval == 0 or t == train_loader.__len__() - 1:
-                    metric = test(valid_loader, model, device, args)
+                    metric = test(valid_loader, model, device, criterion, args)
                     writer.add_scalar('valid/loss', metric['loss'], train_iter)
                     writer.add_scalar('valid/accuracy', metric['accuracy'], train_iter)
                     writer.add_scalar('valid/f1_score', metric['f1_score'], train_iter)
@@ -146,24 +148,40 @@ def main():
                                  drop_last=False)
 
         # Build Models
-        model = ResNet(num_character=args.num_char)  # ResNet50
-
+        model = UNet(n_channels=3, n_classes=args.num_cls)
+        criterion = nn.CrossEntropyLoss()
         # Checkpoint
         if args.ckpt:
             checkpoint = torch.load(args.ckpt, map_location=device)
             model.load_state_dict(checkpoint)
 
-        metric = test(test_loader, model, device, args)
-        print(metric['acc_single'], metric['acc_pair'], metric['acc_topk'])
+        metric = test(test_loader, model, device, criterion, args)
+        
+        # Save image and results file
+        if not os.path.exists('./results'):
+            os.makedirs('./results/mask')
+            os.makedirs('./results/image')
+            os.makedirs('./results/segmentation')
+
+        for i in range(len(metric['y_pr'])):
+            image_mask = metric['y_pr'][i] / 1.0
+            image_orig = metric['x_gt'][i] / 1.0
+            image_segm = image_mask * image_orig
+
+            torchvision.utils.save_image(image_mask, f'results/mask/{i:04}.png')
+            torchvision.utils.save_image(image_orig, f'results/image/{i:04}.png')
+            torchvision.utils.save_image(image_segm, f'results/segmentation/{i:04}.png')
+        
+        metric.pop('y_pr')
+        metric.pop('y_gt')
         print(metric)
-        with open('./results.json', 'w') as fp:
-            json.dump(metric, fp, indent=4)
 
 
 @torch.no_grad()
 def test(dataloader, model, device, criterion, args):
     y_pr_list = []
     y_gt_list = []
+    x_gt_list = []
     loss_list = []
     model = model.to(device)
     for t, batch in enumerate(dataloader):
@@ -172,13 +190,14 @@ def test(dataloader, model, device, criterion, args):
         batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
 
         # Predict
+        x_gt_list.append(batch['image'])
         y_pr = model(batch['image'])       # (B, num_cls, H, W)
         y_gt = batch['mask']               # (B, H, W)
 
         # Loss
         B, num_cls, H, W = y_pr.shape
         y_pr = y_pr.permute(0, 2, 3, 1)
-        y_pr_flatten = y_pr.shape(B * H * W, num_cls)
+        y_pr_flatten = y_pr.reshape(B * H * W, num_cls)
         y_gt_flatten = y_gt.flatten()
         loss = criterion(y_pr_flatten, y_gt_flatten)
         loss_list.append(loss.item())
@@ -188,13 +207,17 @@ def test(dataloader, model, device, criterion, args):
 
         y_pr_list.append(y_pr)
         y_gt_list.append(y_gt)
-
+    
+    x_gt = torch.cat(x_gt_list, dim=0)  # (N, 3, H, W)
     y_pr = torch.cat(y_pr_list, dim=0)  # (N, H, W)
     y_gt = torch.cat(y_gt_list, dim=0)  # (N, H, W)
     loss = torch.tensor(loss_list).mean().item()
 
     metric = evaluate_segmentation(y_gt, y_pr)
     metric['loss'] = loss
+    metric['x_gt'] = x_gt
+    metric['y_pr'] = y_pr
+    metric['y_gt'] = y_gt
 
     return metric
 

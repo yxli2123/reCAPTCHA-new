@@ -49,6 +49,7 @@ def prob(w1, w2):
 
 def evaluate_segmentation(y_gt, y_pr):
     y_gt, y_pr = y_gt.flatten(), y_pr.flatten()
+    y_gt, y_pr = y_gt.cpu().numpy(), y_pr.cpu().numpy()
 
     matrix = confusion_matrix(y_gt, y_pr)
     acc = accuracy_score(y_gt, y_pr)

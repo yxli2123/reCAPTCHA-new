@@ -15,7 +15,7 @@ class LineCAPTCHA(Dataset):
 
         # self.data = []
         # self.load_data()
-        self.transform = transforms.Compose([transforms.Resize([200, 320]),
+        self.transform = transforms.Compose([transforms.Resize((200, 320)),
                                              transforms.ToTensor()])
         info_file = open(self.info_file)
         self.data_info = json.load(info_file)
@@ -30,7 +30,7 @@ class LineCAPTCHA(Dataset):
         sample = self.data_info[idx]
         # Load Images
         image_path = os.path.join(self.image_dir, self.split, sample['image_path'])
-        image = self.transform(Image.open(image_path)) / 255.0
+        image = self.transform(Image.open(image_path))
         image = image[0: 3]
 
         # Box
