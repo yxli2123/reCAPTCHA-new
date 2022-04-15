@@ -73,7 +73,7 @@ def main():
         valid_set = LineCAPTCHA(args.data_dir, split='valid')
         train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=args.threads, shuffle=True,
                                   drop_last=True)
-        valid_loader = DataLoader(valid_set, batch_size=batch_size, num_workers=args.threads, shuffle=True,
+        valid_loader = DataLoader(valid_set, batch_size=1, num_workers=args.threads, shuffle=True,
                                   drop_last=True)
 
         ############################
