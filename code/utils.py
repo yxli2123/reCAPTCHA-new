@@ -4,6 +4,7 @@ import random
 import torch.nn.functional as F
 import json
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
+from sklearn.cluster import KMeans
 
 
 def setup_seed(seed):
@@ -14,37 +15,27 @@ def setup_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
-@torch.no_grad()
-def prob(w1, w2):
-    w1_token = tokenizer(w1, add_special_tokens=False, return_tensors="pt")['input_ids']
-    w2_token = tokenizer(w2, add_special_tokens=False, return_tensors="pt")['input_ids']
-    # print(w1_token, w2_token)
+def crop_image(image: np.ndarray, n_clusters=4, box_size=60):
+    k_means_class = KMeans(n_clusters=n_clusters, init='k-means++')
+    sample = np.where(image[..., 0] != 0)
+    sample = np.array([[sample[0][i], sample[1][i]] for i in range(len(sample[0]))])
+    kmeans = k_means_class.fit(sample)
+    center = kmeans.cluster_centers_.astype('int64')
 
-    mask = tokenizer.mask_token
-    w1_given_w2 = tokenizer.encode_plus(mask + w2, return_tensors="pt")
-    w2_given_w1 = tokenizer.encode_plus(w1 + mask, return_tensors="pt")
+    image_stack = []
+    H, W, C = image.shape
+    for c in center:
+        h, w = c[0], c[1]
+        top = max(h - box_size // 2, 0)
+        bottom = min(h + box_size // 2, H)
+        left = max(w - box_size // 2, 0)
+        right = min(w + box_size // 2, W)
 
-    mask_index_w1_given_w2 = torch.where(w1_given_w2["input_ids"][0] == tokenizer.mask_token_id)
-    mask_index_w2_given_w1 = torch.where(w2_given_w1["input_ids"][0] == tokenizer.mask_token_id)
+        image_piece = image[top: bottom, left: right]
+        image_stack.append(image_piece)
 
-    logits_w1_given_w2 = model(**w1_given_w2).logits[0, mask_index_w1_given_w2]
-    logits_w2_given_w1 = model(**w2_given_w1).logits[0, mask_index_w2_given_w1]
-
-    p_w1_given_w2 = F.softmax(logits_w1_given_w2, dim=-1)
-    p_w2_given_w1 = F.softmax(logits_w2_given_w1, dim=-1)
-    # print(p_w1_given_w2.shape)
-
-    # val_w1_given_w2, pos_w1_given_w2 = torch.topk(p_w1_given_w2, k=5)
-    # val_w2_given_w1, pos_w2_given_w1 = torch.topk(p_w2_given_w1, k=5)
-
-    # print(val_w1_given_w2, val_w2_given_w1)
-    # print(tokenizer.decode(pos_w1_given_w2[0]), tokenizer.decode(pos_w2_given_w1[0]))
-
-    p_w1_given_w2 = p_w1_given_w2[0, w1_token]
-    p_w2_given_w1 = p_w2_given_w1[0, w2_token]
-    # print(p_w1_given_w2, p_w2_given_w1)
-
-    return p_w1_given_w2, p_w2_given_w1
+    image_stack = np.stack(image_stack)
+    return image_stack
 
 
 def evaluate_segmentation(y_gt, y_pr):

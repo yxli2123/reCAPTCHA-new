@@ -13,7 +13,7 @@ import torchvision
 #from model import ResNet
 from unet import UNet
 from utils import *
-from dataloader import LineCAPTCHA
+from dataloader import LineCAPTCHA_box, LineCAPTCHA_mask
 
 
 def main():
@@ -69,8 +69,8 @@ def main():
         ############################
         #            DATA          #
         ############################
-        train_set = LineCAPTCHA(args.data_dir, split='train')
-        valid_set = LineCAPTCHA(args.data_dir, split='valid')
+        train_set = LineCAPTCHA_mask(args.data_dir, split='train')
+        valid_set = LineCAPTCHA_mask(args.data_dir, split='valid')
         train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=args.threads, shuffle=True,
                                   drop_last=True)
         valid_loader = DataLoader(valid_set, batch_size=1, num_workers=args.threads, shuffle=True,
@@ -143,7 +143,7 @@ def main():
                     torch.save(model.state_dict(), os.path.join(log_dir, f"{train_iter}.pth"))
 
     elif args.mode == 'test':
-        test_set = LineCAPTCHA(args.data_dir, split='test')
+        test_set = LineCAPTCHA_mask(args.data_dir, split='test')
         test_loader = DataLoader(test_set, batch_size=args.batch_size, num_workers=args.threads, shuffle=False,
                                  drop_last=False)
 
