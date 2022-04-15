@@ -90,7 +90,7 @@ class UNet(nn.Module):
         self.up3 = Up(64, 32 // factor, bilinear)
         self.up4 = Up(32, 16, bilinear)
         self.outc = OutConv(16, n_classes)
-
+    
     def forward(self, x):
         x1 = self.inc(x)
         x2 = self.down1(x1)
