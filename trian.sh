@@ -1,11 +1,27 @@
 #!/usr/bin/env bash
 
 python main.py \
+--task segmentation_box \
 --mode train \
---ckpt ../exp_log/1ch_captcha/80/56000.pth \
---data_dir ../data/image/captcha_1ch_80 \
---epochs 400 \
---exp_name 1ch_captcha \
---run_name 80 \
---num_char 1 \
---train_iter 56000 
+--exp_name segmentation \
+--run_name box_bs32 \
+--data_dir ../data/captcha_click \
+--epochs 100 \
+--batch_size 32 \
+--train_iter 0 \
+--valid_interval 5000 \
+--save_interval 5000 \
+--print_interval 1000
+
+python main.py \
+--task recognition_bg \
+--mode train \
+--exp_name segmentation \
+--run_name box_bs32 \
+--data_dir ../data/captcha_click \
+--epochs 100 \
+--batch_size 32 \
+--train_iter 0 \
+--valid_interval 5000 \
+--save_interval 5000 \
+--print_interval 1000
