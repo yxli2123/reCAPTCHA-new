@@ -100,7 +100,7 @@ class ImageChar:
 
 
 def generate(name='captcha_click', split='train', num=1000):
-    data_dir = f"./image/{name}"
+    data_dir = f"./{name}"
     split_dir = os.path.join(data_dir, split)
     if not os.path.exists(split_dir):
         os.makedirs(split_dir)
