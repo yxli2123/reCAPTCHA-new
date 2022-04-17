@@ -76,8 +76,12 @@ def evaluate(dataloader, model, device, criterion, args):
         batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
 
         # Forward the input by the model
-        x_list.append(batch['image'].cpu().numpy())
+        x_list.append(batch['image'])
         y_pr, y_gt = forward(batch, model, args.task)
+
+        # Loss
+        loss = criterion(y_pr, y_gt)
+        loss_list.append(loss)
 
         # Predict
         y_pr = torch.argmax(y_pr, dim=1)
@@ -85,9 +89,6 @@ def evaluate(dataloader, model, device, criterion, args):
         y_pr_list.append(y_pr)
         y_gt_list.append(y_gt)
 
-        # Loss
-        loss = criterion(y_pr, y_gt)
-        loss.append(loss)
 
     # Metric
     x = torch.cat(x_list, dim=0)        # (N_all, C, H, W)
@@ -100,8 +101,8 @@ def evaluate(dataloader, model, device, criterion, args):
 
     # Reshape to Image
     if 'segmentation' in args.task:
-        y_pr = einops.rearrange(y_pr, '(All H W) -> All C H W', C=1, H=args.H, W=args.W)
-        y_gt = einops.rearrange(y_gt, '(All H W) -> All C H W', C=1, H=args.H, W=args.W)
+        y_pr = einops.rearrange(y_pr, '(All C H W) -> All C H W', C=1, H=args.H, W=args.W)
+        y_gt = einops.rearrange(y_gt, '(All C H W) -> All C H W', C=1, H=args.H, W=args.W)
     elif 'recognition' in args.task:
         y_pr = einops.rearrange(y_pr, '(All N) -> All N', N=args.max_char)
         y_gt = einops.rearrange(y_gt, '(All N) -> All N', N=args.max_char)
@@ -112,11 +113,13 @@ def evaluate(dataloader, model, device, criterion, args):
         with open(args.decoder_file, 'r') as decoder_file:
             decoder = json.load(decoder_file)
             decoder_file.close()
+            print(decoder)
 
         for pr, gt in zip(y_pr, y_gt):
             # pr of shape (N)
-            y_pr_char.append("".join(decoder[token] for token in pr))
-            y_gt_char.append("".join(decoder[token] for token in gt))
+            #y_pr_char.append("".join(decoder[str(token)] for token in pr))
+            #y_gt_char.append("".join(decoder[str(token)] for token in gt))
+            pass
 
         y_pr, y_gt = y_pr_char, y_gt_char
 

@@ -14,7 +14,7 @@ class CAPTCHA(Dataset):
         self.task = task
         self.split = split
 
-        self.padding = args.smax_char
+        self.padding = args.max_char
         self.H = args.H
         self.W = args.W
         self.char_size = args.char_size
@@ -80,7 +80,7 @@ class CAPTCHA(Dataset):
                 else:
                     character = image[:, box[1]: box[1] + box[3], box[0]: box[0] + box[2]]
 
-                character = self.transform_box(character)  # (3, 50, 50)
+                character = self.transform_character(character)  # (3, 50, 50)
                 character_list.append(character)
 
             # Padding

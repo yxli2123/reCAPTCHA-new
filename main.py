@@ -27,9 +27,9 @@ def main():
     parser.add_argument('--run_name',       type=str,   default='bs_32')
 
     # Dataset Parameters
-    parser.add_argument('--data_dir',       type=str,   default='../data/image/captcha_2ch_80/')
+    parser.add_argument('--data_dir',       type=str,   default='data/captcha_click')
     parser.add_argument('--info_file',      type=str,   default='')
-    parser.add_argument('--decoder_file',   type=str,   default='../data/text/decoder_3000.json')
+    parser.add_argument('--decoder_file',   type=str,   default='data/text/decoder_3000.json')
     parser.add_argument('--max_char',       type=int,   default=5)
     parser.add_argument('--H',              type=int,   default=200)
     parser.add_argument('--W',              type=int,   default=320)
@@ -85,7 +85,7 @@ def main():
         if 'segmentation' in args.task:
             num_cls = args.num_cls if args.num_cls else 2
             model = UNet(n_channels=3, n_classes=num_cls)
-        elif args.task == 'recognition':
+        elif 'recognition' in args.task:
             num_cls = args.num_cls if args.num_cls else 3000
             model = ResNet(pretrained=False, num_classes=num_cls)
         else:
@@ -137,7 +137,7 @@ def main():
                 if train_iter % args.print_interval == 0:
                     print(loss.item())
                     writer.add_scalar('train/loss', loss.item(), train_iter)
-                    writer.add_images('train/image', batch['image'], train_iter)
+                    writer.add_images('train/image', batch['image'] if 'segmentation' in args.task else batch['image'][0], train_iter)
 
                 if train_iter % args.valid_interval == 0 or t == train_loader.__len__() - 1:
                     results = evaluate(valid_loader, model, device, criterion, args)
