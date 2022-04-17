@@ -5,7 +5,7 @@ from transformers import AutoModel
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_character, num_cls=200):
+    def __init__(self, num_cls=3000):
         super().__init__()
         self.num_character = num_character
         self.num_cls = num_cls
@@ -17,10 +17,8 @@ class ResNet(nn.Module):
         """
         x: (B, num_char, C, H, W)
         """
-        B, num_char, C, H, W = x.shape
-        x = x.reshape(B*num_char, C, H, W)         # (num_char*B, C, H, W)
-        y = self.resnet(x)                         # (num_char*B, num_cls)
-        y = y.reshape(B, num_char, self.num_cls)   # (B, num_char, num_cls)
+        B, C, H, W = x.shape
+        y = self.resnet(x)                         # (B, num_cls)
         return y
 
 

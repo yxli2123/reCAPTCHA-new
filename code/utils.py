@@ -52,12 +52,23 @@ def evaluate_segmentation(y_gt, y_pr):
 
     return metric
 
+def accuracy(y_gt, y_pr):
+    y_gt, y_pr = y_gt.flatten(), y_pr.flatten()
+    y_gt, y_pr = y_gt.cpu().numpy(), y_pr.cpu().numpy()
+
+    acc = accuracy_score(y_gt, y_pr)
+
+    metric = {"accuracy": acc}
+
+    return metric
+
+
+
 
 def evaluate(y_gt, y_pr, num_character=1, top_k=1, decode_file='../data/text/decode.json'):
     """
-    :param          y_gt: of shape (N*num_char)
-    :param          y_pr: of shape (N*num_char, num_cls)
-    :param num_character: 1 or 2
+    :param          y_gt: of shape (N)
+    :param          y_pr: of shape (N, num_cls)
     :param         top_k: top k candidates of the prediction
     :param   decode_file: decode
     :return:
@@ -67,7 +78,6 @@ def evaluate(y_gt, y_pr, num_character=1, top_k=1, decode_file='../data/text/dec
     acc_single = 0
     acc_pair = 0
     acc_topk = 0
-    loss = F.cross_entropy(y_pr, y_gt).item()
 
     # Results
     with open(decode_file, 'r') as fp:
@@ -85,48 +95,41 @@ def evaluate(y_gt, y_pr, num_character=1, top_k=1, decode_file='../data/text/dec
         return words
 
     results = []
-
-    N_num_char, num_cls = y_pr.shape
-    y_pr = y_pr.view(N_num_char // num_character, num_character, num_cls)   # (N, num_char, num_cls)
-    y_gt = y_gt.view(N_num_char // num_character, num_character)            # (N, num_char)
-    N, _, _ = y_pr.shape
-
+    
+    N = len(y_gt)
     for gt, pr in zip(y_gt, y_pr):
         """
-        pr of shape (num_char, num_cls)
-        gt of shape (num_char)
+        pr of shape (num_cls)
+        gt of shape (1)
         """
-        pr = F.softmax(pr, dim=1)
-        top_k_value, top_k_token = torch.topk(pr, k=top_k, dim=1)  # (num_char, k)
+        pr = F.softmax(pr, dim=0)
+        top_k_value, top_k_token = torch.topk(pr, k=top_k, dim=0)  # (k)
 
         # Statics
         correct_cnt = 0
         char_pr = []
-        for i in range(num_character):
-            # Single character accuracy
-            if top_k_token[i][0] == gt[i]:
-                correct_cnt += 1
-                acc_single += 1
 
-            # Top k character accuracy: if ground truth is among the top k answer
-            for j in range(top_k):
-                if top_k_token[i][j] == gt[i]:
-                    acc_topk += 1
+        if top_k_token[0] == gt:
+            correct_cnt += 1
+            acc_single += 1
 
-            if correct_cnt == num_character:
-                acc_pair += 1
-            char_pr_i = {decode([token]): pr[i, token].item() for token in top_k_token[i]}
-            char_pr.append(char_pr_i)
+        # Top k character accuracy: if ground truth is among the top k answer
+        for j in range(top_k):
+            if top_k_token[j] == gt:
+                acc_topk += 1
+
+        if correct_cnt == num_character:
+            acc_pair += 1
+        #char_pr = {decode([token]): pr[token].item() for token in top_k_token}
 
         # Results
-        char_gt = decode(gt)   # e.g. "中国"
-        results.append({"char_gt": char_gt,
-                        "char_pr": char_pr})
+        #char_gt = decode(gt)   # e.g. "中国"
+        #results.append({"char_gt": char_gt,
+        #                "char_pr": char_pr})
 
-    metric = {"loss": loss,
-              "acc_single": acc_single / (num_character * N),
+    metric = {"acc_single": acc_single / N,
               "acc_pair": acc_pair / N,
-              "acc_topk": acc_topk / (num_character * N),
+              "acc_topk": acc_topk / N,
               "results": results}
     return metric
 

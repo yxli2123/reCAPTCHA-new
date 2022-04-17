@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import random
+from tqdm import tqdm
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -13,7 +14,7 @@ import torchvision
 #from model import ResNet
 from unet import UNet
 from utils import *
-from dataloader import LineCAPTCHA_box, LineCAPTCHA_mask
+from dataloader import LineCAPTCHA_box, LineCAPTCHA_mask, LineCAPTCHA_rec
 
 
 def main():
@@ -69,8 +70,8 @@ def main():
         ############################
         #            DATA          #
         ############################
-        train_set = LineCAPTCHA_mask(args.data_dir, split='train')
-        valid_set = LineCAPTCHA_mask(args.data_dir, split='valid')
+        train_set = LineCAPTCHA_box(args.data_dir, split='train')
+        valid_set = LineCAPTCHA_box(args.data_dir, split='valid')
         train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=args.threads, shuffle=True,
                                   drop_last=True)
         valid_loader = DataLoader(valid_set, batch_size=1, num_workers=args.threads, shuffle=True,
@@ -143,7 +144,7 @@ def main():
                     torch.save(model.state_dict(), os.path.join(log_dir, f"{train_iter}.pth"))
 
     elif args.mode == 'test':
-        test_set = LineCAPTCHA_mask(args.data_dir, split='test')
+        test_set = LineCAPTCHA_box(args.data_dir, split='test')
         test_loader = DataLoader(test_set, batch_size=args.batch_size, num_workers=args.threads, shuffle=False,
                                  drop_last=False)
 
@@ -174,7 +175,9 @@ def main():
         
         metric.pop('y_pr')
         metric.pop('y_gt')
-        print(metric)
+        metric.pop('x_gt')
+        for k, v in metric.items():
+            print(f"{k}: {v}")
 
 
 @torch.no_grad()
@@ -184,7 +187,7 @@ def test(dataloader, model, device, criterion, args):
     x_gt_list = []
     loss_list = []
     model = model.to(device)
-    for t, batch in enumerate(dataloader):
+    for t, batch in enumerate(tqdm(dataloader)):
         model.eval()
         # Load batch to device
         batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
@@ -205,8 +208,8 @@ def test(dataloader, model, device, criterion, args):
         # Classify
         y_pr = torch.argmax(y_pr, dim=3)  # (B, H, W)
 
-        y_pr_list.append(y_pr)
-        y_gt_list.append(y_gt)
+        y_pr_list.append(y_pr.cpu())
+        y_gt_list.append(y_gt.cpu())
     
     x_gt = torch.cat(x_gt_list, dim=0)  # (N, 3, H, W)
     y_pr = torch.cat(y_pr_list, dim=0)  # (N, H, W)
@@ -215,9 +218,9 @@ def test(dataloader, model, device, criterion, args):
 
     metric = evaluate_segmentation(y_gt, y_pr)
     metric['loss'] = loss
-    metric['x_gt'] = x_gt
-    metric['y_pr'] = y_pr
-    metric['y_gt'] = y_gt
+    metric['x_gt'] = x_gt.cpu()
+    metric['y_pr'] = y_pr.cpu()
+    metric['y_gt'] = y_gt.cpu()
 
     return metric
 
