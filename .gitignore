@@ -4,3 +4,5 @@ exp_log
 */.ipynb_checkpoints
 .history
 captcha_click.zip
+.DS_Store
+
