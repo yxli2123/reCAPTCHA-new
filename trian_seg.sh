@@ -3,9 +3,9 @@
 python main.py \
 --task segmentation_box \
 --mode train \
---run_name box_bs16 \
+--run_name box_bs2 \
 --data_dir data/captcha_click \
---epochs 50 \
+--epochs 60 \
 --batch_size 2 \
 --train_iter 0 \
 --valid_interval 5000 \

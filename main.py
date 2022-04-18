@@ -176,7 +176,7 @@ def main():
         # Save image and results file
         if not os.path.exists('./results'):
             os.makedirs('./results')
-        fp = open('./results/results.txt', 'r')
+        fp = open('./results/results.txt', 'w')
 
         if 'segmentation' in args.task:
             os.makedirs('./results/mask')
