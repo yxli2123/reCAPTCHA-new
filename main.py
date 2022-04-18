@@ -183,13 +183,14 @@ def main():
             os.makedirs('./results/image')
             os.makedirs('./results/segmentation')
             for i, (image, mask) in enumerate(zip(results['x'], results['y_pr'])):
+                mask = mask.float()
                 segmentation = image * mask
                 torchvision.utils.save_image(image, f'results/image/{i:04}.png')
                 torchvision.utils.save_image(mask, f'results/mask/{i:04}.png')
                 torchvision.utils.save_image(segmentation, f'results/segmentation/{i:04}.png')
         if 'recognition' in args.task:
             for i, (label, prediction) in enumerate(zip(results['y_gt'], results['y_pr'])):
-                fp.write(f'index: {i:04}, label: {label}, prediction: {prediction}\n')
+                fp.write(f'id: {i:04}, label: {label}, prediction: {prediction}\n')
 
         for k, v in results['metric'].items():
             fp.write(f"{k}: {v}\n")

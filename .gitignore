@@ -8,3 +8,4 @@ captcha_click.zip
 __pycache__
 nohup*
 *.out
+results*

@@ -95,8 +95,7 @@ def evaluate(dataloader, model, device, criterion, args):
     y_pr = torch.cat(y_pr_list, dim=0)  # (N_all)
     y_gt = torch.cat(y_gt_list, dim=0)  # (N_all)
 
-    y_pr, y_gt = y_pr.cpu().numpy(), y_gt.cpu().numpy()
-    accuracy = accuracy_score(y_gt, y_pr)
+    accuracy = accuracy_score(y_gt.cpu(), y_pr.cpu())
     loss = torch.tensor(loss_list).mean().item()
 
     # Reshape to Image
@@ -116,8 +115,8 @@ def evaluate(dataloader, model, device, criterion, args):
 
         for pr, gt in zip(y_pr, y_gt):
             # pr of shape (N)
-            y_pr_char.append("".join(decoder[str(token)] for token in pr))
-            y_gt_char.append("".join(decoder[str(token)] for token in gt))
+            y_pr_char.append("".join(decoder[str(token.item())] for token in pr))
+            y_gt_char.append("".join(decoder[str(token.item())] for token in gt))
             pass
 
         y_pr, y_gt = y_pr_char, y_gt_char
