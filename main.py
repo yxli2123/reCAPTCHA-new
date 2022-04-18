@@ -23,7 +23,7 @@ def main():
                                                                                              'recognition_bg',
                                                                                              'recognition_clean'])
     parser.add_argument('--exp_dir',        type=str,   default='exp_log')
-    parser.add_argument('--exp_name',       type=str,   default='segmentation_box')
+    parser.add_argument('--exp_name',       type=str,   default=None)
     parser.add_argument('--run_name',       type=str,   default='bs_32')
 
     # Dataset Parameters
