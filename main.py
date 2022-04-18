@@ -170,8 +170,8 @@ def main():
 
         results = evaluate(test_loader, model, device, criterion, args)
 
-        print(results['metric']['loss'])
-        print(results['metric']['accuracy'])
+        print("    loss: ", results['metric']['loss'])
+        print("accuracy: ", results['metric']['accuracy'])
         
         # Save image and results file
         if not os.path.exists('./results'):
@@ -181,13 +181,13 @@ def main():
         fp = open('./results/results.txt', 'r')
 
         if 'segmentation' in args.task:
-            for i, image, mask in enumerate(zip(results['x'], results['y_pr'])):
+            for i, (image, mask) in enumerate(zip(results['x'], results['y_pr'])):
                 segmentation = image * mask
                 torchvision.utils.save_image(image, f'results/image/{i:04}.png')
                 torchvision.utils.save_image(mask, f'results/mask/{i:04}.png')
                 torchvision.utils.save_image(segmentation, f'results/segmentation/{i:04}.png')
         if 'recognition' in args.task:
-            for i, label, prediction in enumerate(zip(results['y_gt'], results['y_pr'])):
+            for i, (label, prediction) in enumerate(zip(results['y_gt'], results['y_pr'])):
                 fp.write(f'index: {i:04}, label: {label}, prediction: {prediction}\n')
 
         for k, v in results['metric'].items():
