@@ -35,7 +35,7 @@ def diag_detect(img, th=1):
     diag_point_pairs2 = np.array(np.where(np.abs(dist_x + dist_y) <= th)).transpose()
     diag_point_pairs = np.concatenate([diag_point_pairs1, diag_point_pairs2], axis=0)
     
-    return [(points[p[0]][1], points[p[0]][0]), (points[p[1]][1], points[p[1]][0]) for p in diag_point_pairs]
+    return [((points[p[0]][1], points[p[0]][0]), (points[p[1]][1], points[p[1]][0])) for p in diag_point_pairs]
 
 def merge_pairs(diag_point_pairs, min_dist=10):
     merged_pairs = {}
@@ -80,3 +80,6 @@ def crop(img):
     cleaned_pairs = clean_pairs(merge_pairs(diag_point_pairs), img)
     return [diag_to_square(pair) for pair in cleaned_pairs]
 
+img = cv.imread('./tmp_image/0001.png')
+gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+print(crop(gray))
