@@ -175,12 +175,13 @@ def main():
         
         # Save image and results file
         if not os.path.exists('./results'):
-            os.makedirs('./results/mask')
-            os.makedirs('./results/image')
-            os.makedirs('./results/segmentation')
+            os.makedirs('./results')
         fp = open('./results/results.txt', 'r')
 
         if 'segmentation' in args.task:
+            os.makedirs('./results/mask')
+            os.makedirs('./results/image')
+            os.makedirs('./results/segmentation')
             for i, (image, mask) in enumerate(zip(results['x'], results['y_pr'])):
                 segmentation = image * mask
                 torchvision.utils.save_image(image, f'results/image/{i:04}.png')
@@ -191,7 +192,7 @@ def main():
                 fp.write(f'index: {i:04}, label: {label}, prediction: {prediction}\n')
 
         for k, v in results['metric'].items():
-            fp.write(f"{k}: {v}")
+            fp.write(f"{k}: {v}\n")
 
 
 if __name__ == '__main__':
