@@ -113,7 +113,6 @@ def evaluate(dataloader, model, device, criterion, args):
         with open(args.decoder_file, 'r') as decoder_file:
             decoder = json.load(decoder_file)
             decoder_file.close()
-            print(decoder)
 
         for pr, gt in zip(y_pr, y_gt):
             # pr of shape (N)
