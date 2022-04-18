@@ -117,8 +117,8 @@ def evaluate(dataloader, model, device, criterion, args):
 
         for pr, gt in zip(y_pr, y_gt):
             # pr of shape (N)
-            #y_pr_char.append("".join(decoder[str(token)] for token in pr))
-            #y_gt_char.append("".join(decoder[str(token)] for token in gt))
+            y_pr_char.append("".join(decoder[str(token)] for token in pr))
+            y_gt_char.append("".join(decoder[str(token)] for token in gt))
             pass
 
         y_pr, y_gt = y_pr_char, y_gt_char
