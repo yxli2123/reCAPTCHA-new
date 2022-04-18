@@ -155,7 +155,7 @@ def main():
         if 'segmentation' in args.task:
             num_cls = args.num_cls if args.num_cls else 2
             model = UNet(n_channels=3, n_classes=num_cls)
-        elif args.task == 'recognition':
+        elif 'recognition' in args.task:
             num_cls = args.num_cls if args.num_cls else 3000
             model = ResNet(pretrained=False, num_classes=num_cls)
         else:
