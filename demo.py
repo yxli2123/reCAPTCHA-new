@@ -70,7 +70,9 @@ def recognize(image_char: torch.Tensor,
 
 def crop_segmentation(captcha: torch.Tensor, captcha_mask: torch.Tensor, args):
     # Boxes
-    captcha_mask_ = captcha_mask.cpu().numpy()[0]    # (H, W), numpy array
+    pad = transforms.Pad(2)
+    captcha_mask_ = pad(captcha_mask)
+    captcha_mask_ = captcha_mask_.cpu().numpy()[0]   # (H, W), numpy array
     position_list = crop(captcha_mask_)              # (N) tuple of (upper left x, upper left y, width, height)
     boxes = torch.tensor(position_list)              # (N, 4)
     boxes[:, 2] = boxes[:, 0] + boxes[:, 2]
