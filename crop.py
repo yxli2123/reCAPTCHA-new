@@ -80,6 +80,7 @@ def crop(img):
     cleaned_pairs = clean_pairs(merge_pairs(diag_point_pairs), img)
     return [diag_to_square(pair) for pair in cleaned_pairs]
 
-img = cv.imread('./tmp_image/0001.png')
-gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-print(crop(gray))
+if __name__ == '__main__':
+    img = cv.imread('/Users/yxli/Downloads/results/mask/0001.png')
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    print(crop(gray))
