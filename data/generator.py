@@ -67,8 +67,11 @@ class ImageChar:
             bg_color = np.average(np.average(img_data[pos[1]:pos[1] + size, pos[0]:pos[0] + size], axis=0), axis=0)
             r, g, b, _ = bg_color
             h, _, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-            h = h + 0.5 if h < 0.5 else h - 0.5
-            r, g, b = colorsys.hsv_to_rgb(h, 1, 1)
+            h = h + 0.3 if h < 0.5 else h - 0.3
+            s = random.uniform(0.6, 1.0)
+            v = random.uniform(0.5, 1.0)
+            v = v if v > 0.7 else 0
+            r, g, b = colorsys.hsv_to_rgb(h, s, v)
             color = (int(r * 255), int(g * 255), int(b * 255), 255)
         elif len(color) == 3:
             color = (color[0], color[1], color[2], 255)
@@ -86,7 +89,7 @@ class ImageChar:
         self.randomBackground()
         num = len(text)
         pos = self.randomPosition(num, min_dist=1.5 * self.fontSize)
-        rotate = [random.randint(-45, 45) for _ in range(num)]
+        rotate = [random.randint(-60, 60) for _ in range(num)]
         font_name_list = os.listdir(self.fontDir)
         fonts = [ImageFont.truetype(os.path.join(self.fontDir, f), self.fontSize) for f in font_name_list]
         bbox = []
