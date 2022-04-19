@@ -16,7 +16,7 @@ from crop import crop
 def import_args():
     parser = argparse.ArgumentParser(description='reCAPTCHA')
 
-    parser.add_argument('--captcha_dir',   type=str, default='data/captcha/test/')
+    parser.add_argument('--captcha_dir',   type=str, default='data/captcha')
     parser.add_argument('--captcha_file',  type=str, default='')
     parser.add_argument('--captcha_label', type=str, default='')
     parser.add_argument('--H',             type=int, default=200)
@@ -39,7 +39,7 @@ def import_args():
 def segment(image: torch.Tensor,
             model: nn.Module,
             device):
-
+    image = image.to(device)
     x = image.to(device)                        # (3, H, W)
     x = x.unsqueeze(0)                          # (1, 3, H, W)
     logits = model(x)                           # (1, 2, H, W)
@@ -82,7 +82,7 @@ def crop_segmentation(captcha: torch.Tensor, captcha_mask: torch.Tensor, args):
     captcha_list = []
     transform_character = transforms.Resize((args.char_size, args.char_size))
     for pos in position_list:
-        single_word = captcha[..., pos[0]: pos[0]+pos[2], pos[1]:pos[1]+pos[3]]
+        single_word = captcha[..., pos[1]: pos[1]+pos[3], pos[0]:pos[0]+pos[2]]
         single_word = transform_character(single_word)
         captcha_list.append(single_word)
 
@@ -129,6 +129,9 @@ def test():
     model_seg.load_state_dict(model_seg_ckpt)
     model_rec.load_state_dict(model_rec_ckpt)
 
+    model_seg = model_seg.to(device)
+    model_rec = model_rec.to(device)
+
     # List all CAPTCHA Image
     if args.captcha_dir:
         info_file = os.path.join(args.captcha_dir, 'test_info.json')
@@ -148,7 +151,7 @@ def test():
     for sample in tqdm(data_info):
         # load image
         captcha_path = os.path.join(args.captcha_dir, 'test', sample['image_path']) if args.captcha_dir else sample['image_path']
-        captcha_image = transform(Image.open(captcha_path))  # (3, H, W)
+        captcha_image = transform(Image.open(captcha_path))[0: 3]  # (3, H, W)
 
         # convert label: list to label: Tensor
         label = sample['word_label_id']
@@ -158,6 +161,9 @@ def test():
         prediction, boxes = pipeline(captcha_image, label, model_seg, model_rec, device, args)
 
         # decode from token
+        for token in prediction:
+            print(token)
+
         prediction = [decoder[str(token.item())] for token in prediction]
 
         recaptcha = draw_bounding_boxes(captcha_image, boxes, label=prediction)
