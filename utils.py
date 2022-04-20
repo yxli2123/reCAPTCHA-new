@@ -61,7 +61,7 @@ def forward(batch, model, task):
 
 
 @torch.no_grad()
-def evaluate(dataloader, model, device, criterion, args):
+def evaluate(dataloader, model, device, criterion, args, similarity_mat=None):
     x_list = []
     y_pr_list = []
     y_gt_list = []
@@ -80,7 +80,7 @@ def evaluate(dataloader, model, device, criterion, args):
         y_pr, y_gt = forward(batch, model, args.task)
 
         # Loss
-        loss = criterion(y_pr, y_gt)
+        loss = criterion(y_pr, y_gt, 2 - similarity_mat[y_gt]) if args.char_sim else criterion(y_pr, y_gt)
         loss_list.append(loss)
 
         # Predict

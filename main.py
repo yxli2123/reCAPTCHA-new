@@ -1,16 +1,28 @@
 import argparse
 import os
+from char_sim import similarity
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torchvision
-
+import torch.nn.functional as F
 
 from model.resnet import resnet50 as ResNet
 from model.unet import UNet
 from utils import *
 from dataloader import CAPTCHA
+
+
+class LabelWeightedCrossEntropyLoss(nn.CrossEntropyLoss):
+
+    def forward(self, input, target, weight):
+        return F.cross_entropy(input,
+                               target,
+                               weight=weight,
+                               ignore_index=self.ignore_index,
+                               reduction=self.reduction,
+                               label_smoothing=self.label_smoothing)
 
 
 def main():
@@ -34,6 +46,10 @@ def main():
     parser.add_argument('--H',              type=int,   default=200)
     parser.add_argument('--W',              type=int,   default=320)
     parser.add_argument('--char_size',      type=int,   default=50)
+    parser.add_argument('--char_sim',       type=bool,  default=False,              action='store_true')
+    parser.add_argument('--char_sim_file',   type=str,   default='similarity_3000.pt')
+
+
 
     # Training Parameters
     parser.add_argument('--train_iter',     type=int,   default=0)
@@ -61,6 +77,11 @@ def main():
     # Multi-GPU
     device_ids = range(args.num_gpus)
     device = torch.device(device_ids[0]) if args.num_gpus != 0 else torch.device('cpu')
+
+    if args.char_sim:
+        similarity_mat = torch.load(args.char_sim_file).to(device)
+    else:
+        similarity_mat = None
 
     if args.mode == 'train':
         # Train params
@@ -100,7 +121,7 @@ def main():
         ############################
         #         OPTIMIZER        #
         ############################
-        criterion = nn.CrossEntropyLoss()
+        criterion = LabelWeightedCrossEntropyLoss() if args.char_sim else nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr)
         optimizer.zero_grad()
 
@@ -127,7 +148,7 @@ def main():
                 y_pr, y_gt = forward(batch, model, args.task)
 
                 # Loss
-                loss = criterion(y_pr, y_gt)
+                loss = criterion(y_pr, y_gt, 2 - similarity_mat[y_gt]) if args.char_sim else criterion(y_pr, y_gt)
 
                 # Optimizer
                 optimizer.zero_grad()
@@ -140,7 +161,7 @@ def main():
                     writer.add_images('train/image', batch['image'] if 'segmentation' in args.task else batch['image'][0], train_iter)
 
                 if train_iter % args.valid_interval == 0 or t == train_loader.__len__() - 1:
-                    results = evaluate(valid_loader, model, device, criterion, args)
+                    results = evaluate(valid_loader, model, device, criterion, args, similarity_mat=similarity_mat)
                     writer.add_scalar('valid/loss', results['metric']['loss'], train_iter)
                     writer.add_scalar('valid/accuracy', results['metric']['accuracy'], train_iter)
 
@@ -161,7 +182,7 @@ def main():
         else:
             raise ValueError("Invalid task, only support segmentation and recognition")
 
-        criterion = nn.CrossEntropyLoss()
+        criterion = LabelWeightedCrossEntropyLoss() if args.char_sim else nn.CrossEntropyLoss()
 
         # Checkpoint
         if args.ckpt:
@@ -172,7 +193,7 @@ def main():
 
         print("    loss: ", results['metric']['loss'])
         print("accuracy: ", results['metric']['accuracy'])
-        
+
         # Save image and results file
         if not os.path.exists('./results'):
             os.makedirs('./results')
