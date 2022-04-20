@@ -114,6 +114,6 @@ def crop(img):
     return [diag_to_square(pair) for pair in cleaned_pairs]
 
 if __name__ == '__main__':
-    img = cv.imread('/Users/yxli/Downloads/results/mask/0001.png')
+    img = cv.imread('/home/v-kehanwu/reCAPTCHA/tmp_image/0001.png')
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     print(crop(gray))
