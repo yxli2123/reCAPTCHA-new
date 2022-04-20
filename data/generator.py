@@ -29,7 +29,7 @@ class ImageChar:
         with Image.open(background) as im:
             self.image = im.copy().convert('RGBA')
         self.temp_image = Image.new('RGBA', self.image.size, (0, 0, 0, 255))
-        self.fontSize = int(self.image.height * 0.15)
+        self.fontSize = int(self.image.height * 0.18)
 
     def randomPosition(self, num_char, min_dist=True):
         pos = []
@@ -66,11 +66,18 @@ class ImageChar:
             img_data = np.asarray(self.image)
             bg_color = np.average(np.average(img_data[pos[1]:pos[1] + size, pos[0]:pos[0] + size], axis=0), axis=0)
             r, g, b, _ = bg_color
-            h, _, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-            h = h + 0.3 if h < 0.5 else h - 0.3
-            s = random.uniform(0.6, 1.0)
-            v = random.uniform(0.5, 1.0)
-            v = v if v > 0.7 else 0
+            h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            h = random.uniform(h + 0.25, h + 0.75)
+            if h > 1:
+                h -= 1
+            if v < 0.55:
+                v = random.uniform(0.7, 1)
+            else:
+                if s < 0.3:
+                    v = random.choice([random.uniform(0, 0.3), random.uniform(0.7, 1)])
+                else:
+                    v = random.uniform(0.7, 1)
+            s = random.uniform(0.7, 1)
             r, g, b = colorsys.hsv_to_rgb(h, s, v)
             color = (int(r * 255), int(g * 255), int(b * 255), 255)
         elif len(color) == 3:
