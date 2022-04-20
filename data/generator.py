@@ -67,10 +67,10 @@ class ImageChar:
             bg_color = np.average(np.average(img_data[pos[1]:pos[1] + size, pos[0]:pos[0] + size], axis=0), axis=0)
             r, g, b, _ = bg_color
             h, _, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-            h = h + 0.3 if h < 0.5 else h - 0.3
-            s = random.uniform(0.6, 1.0)
-            v = random.uniform(0.5, 1.0)
-            v = v if v > 0.7 else 0
+            h = h + random.uniform(0.3, 0.5) if h < 0.5 else h - random.uniform(0.3, 0.5)
+            s = random.uniform(0.7, 1.0)
+            v = random.uniform(0.4, 1.0)
+            v = v if v > 0.6 else 0
             r, g, b = colorsys.hsv_to_rgb(h, s, v)
             color = (int(r * 255), int(g * 255), int(b * 255), 255)
         elif len(color) == 3:
