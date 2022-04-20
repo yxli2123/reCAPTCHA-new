@@ -29,7 +29,7 @@ class ImageChar:
         with Image.open(background) as im:
             self.image = im.copy().convert('RGBA')
         self.temp_image = Image.new('RGBA', self.image.size, (0, 0, 0, 255))
-        self.fontSize = int(self.image.height * 0.18)
+        self.fontSize = int(self.image.height * 0.15)
 
     def randomPosition(self, num_char, min_dist=True):
         pos = []
