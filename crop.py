@@ -123,7 +123,10 @@ def crop_stroke(img):
     recs = []
     for cnt in contours:
         rec = cv.boundingRect(cnt)
-        recs.append(rec)
+        width = int(1.5 * max(rec[2], rec[3]))
+        x = int(rec[0] - min(0.25 * width, rec[0]))
+        y = int(rec[1] - min(0.25 * width, rec[1]))
+        recs.append((x, y, width, width))
     return recs
 
 if __name__ == '__main__':
