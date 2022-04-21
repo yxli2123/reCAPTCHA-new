@@ -20,7 +20,7 @@ class LabelWeightedCrossEntropyLoss(nn.Module):
         self.alpha = alpha
 
     def forward(self, input, target):
-        alpha_target = self.alpha ^ target - 1
+        alpha_target = self.alpha ** target - 1
         p_gt = alpha_target / torch.sum(alpha_target, dim=1)
         return torch.sum(-p_gt * F.log_softmax(input), dim=1) 
 
