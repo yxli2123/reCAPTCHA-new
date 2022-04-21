@@ -46,8 +46,8 @@ def main():
     parser.add_argument('--H',              type=int,   default=200)
     parser.add_argument('--W',              type=int,   default=320)
     parser.add_argument('--char_size',      type=int,   default=50)
-    parser.add_argument('--char_sim',       type=bool,  default=False,              action='store_true')
-    parser.add_argument('--char_sim_file',   type=str,   default='similarity_3000.pt')
+    parser.add_argument('--char_sim',       type=bool,  default=False)
+    parser.add_argument('--char_sim_file',  type=str,   default='similarity_3000.pt')
 
 
 
