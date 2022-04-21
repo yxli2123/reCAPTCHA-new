@@ -14,15 +14,15 @@ from utils import *
 from dataloader import CAPTCHA
 
 
-class LabelWeightedCrossEntropyLoss(nn.CrossEntropyLoss):
+class LabelWeightedCrossEntropyLoss(nn.Module):
+    
+    def __init__(self, alpha=2):
+        self.alpha = alpha
 
-    def forward(self, input, target, weight):
-        return F.cross_entropy(input,
-                               target,
-                               weight=weight,
-                               ignore_index=self.ignore_index,
-                               reduction=self.reduction,
-                               label_smoothing=self.label_smoothing)
+    def forward(self, input, target):
+        alpha_target = target ^ self.alpha
+        p_gt = alpha_target / torch.sum(alpha_target, dim=1)
+        return torch.sum(-p_gt * F.log_softmax(input), dim=1) 
 
 
 def main():
@@ -148,7 +148,7 @@ def main():
                 y_pr, y_gt = forward(batch, model, args.task)
 
                 # Loss
-                loss = criterion(y_pr, y_gt, 2 - similarity_mat[y_gt]) if args.char_sim else criterion(y_pr, y_gt)
+                loss = criterion(y_pr, similarity_mat[y_gt]) if args.char_sim else criterion(y_pr, y_gt)
 
                 # Optimizer
                 optimizer.zero_grad()

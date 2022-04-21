@@ -80,7 +80,7 @@ def evaluate(dataloader, model, device, criterion, args, similarity_mat=None):
         y_pr, y_gt = forward(batch, model, args.task)
 
         # Loss
-        loss = criterion(y_pr, y_gt, 2 - similarity_mat[y_gt]) if args.char_sim else criterion(y_pr, y_gt)
+        loss = criterion(y_pr, similarity_mat[y_gt]) if args.char_sim else criterion(y_pr, y_gt)
         loss_list.append(loss)
 
         # Predict
