@@ -6,17 +6,18 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 from model.unet import UNet
-from model.resnet import resnet50 as ResNet
+from model.resnet import resnet18 as ResNet
 import os
 import json
 from tqdm import tqdm
-from crop import crop
+from crop import crop_stroke as crop
+import random
 
 
 def import_args():
     parser = argparse.ArgumentParser(description='reCAPTCHA')
 
-    parser.add_argument('--captcha_dir',   type=str, default='data/captcha')
+    parser.add_argument('--captcha_dir',   type=str, default='data/captcha_click')
     parser.add_argument('--captcha_file',  type=str, default='')
     parser.add_argument('--captcha_label', type=str, default='')
     parser.add_argument('--H',             type=int, default=200)
@@ -26,8 +27,8 @@ def import_args():
     parser.add_argument('--encoder_file',  type=str, default='data/text/encoder_3000.json')
     parser.add_argument('--decoder_file',  type=str, default='data/text/decoder_3000.json')
 
-    parser.add_argument('--ckpt_seg',      type=str, default='exp_log/segmentation_box/box_bs2/45000.pth')
-    parser.add_argument('--ckpt_rec',      type=str, default='exp_log/recognition_bg/bg_bs32/70000.pth')
+    parser.add_argument('--ckpt_seg',      type=str, default='exp_log/segmentation_mask/mask_bs2_newbg/20000.pth')
+    parser.add_argument('--ckpt_rec',      type=str, default='exp_log/recognition_clean/cleanTrain_cleanTeat_bs32/70000.pth')
 
     parser.add_argument('--num_gpus',      type=int, default=1)
 
@@ -55,28 +56,42 @@ def recognize(image_char: torch.Tensor,
               device):
 
     x = image_char.to(device)         # (N, 3, H, W)
-    logits = model(x)                 # (N, 3000)
-    score = F.softmax(logits, dim=1)  # [0.1, 0.2, 0.3, 0.4]
+    label = label.cpu().tolist()
+    y_pr = model(x)                   # (N, 3000)
+    
+    y_candidate = y_pr[:, label]                 # (N, num_cls) --> (N, N)
+    y_candidate = F.softmax(y_candidate, dim=1)  # (N, N)
+    
+    H, W = y_candidate.shape
+    y = torch.zeros(H, dtype=torch.long)
+    for i in range(H):
+        loc = torch.argmax(y_candidate).item()   # index of the flattened NxN matrix 
+        row, col = loc // H, loc % W
+        y[row] = label[col]                      # sign label to the char
 
-    # Keep candidate labels
-    score_ = score.clone()      # [0.1, 0.2, 0.3, 0.4]
-    score_[label] = 0           # [0.0, 0.2, 0.3, 0.0] if label = [0, 3]
-    score = score - score_      # [0.1, 0.0, 0.0, 0.4] if label = [0, 3]
+        # set the col and row to 0 for next iteration
+        y_candidate[row, :] = 0
+        y_candidate[:, col] = 0
 
-    y = torch.argmax(score, dim=1)  # (N)
-
-    return y
+    return torch.tensor(label).to(device)
 
 
 def crop_segmentation(captcha: torch.Tensor, captcha_mask: torch.Tensor, args):
     # Boxes
     pad = transforms.Pad(2)
     captcha_mask_ = pad(captcha_mask)
-    captcha_mask_ = captcha_mask_.cpu().numpy()[0]   # (H, W), numpy array
-    position_list = crop(captcha_mask_)              # (N) tuple of (upper left x, upper left y, width, height)
-    boxes = torch.tensor(position_list)              # (N, 4)
+    captcha_mask_[captcha_mask_ > 0] = 1
+    captcha_mask_ = 255 * captcha_mask_.cpu().numpy()[0]  # (H, W), numpy array
+    position_list = crop(captcha_mask_.astype('uint8'))   # (N) tuple of (upper left x, upper left y, width, height)
+    boxes = torch.tensor(position_list)                   # (N, 4)
     boxes[:, 2] = boxes[:, 0] + boxes[:, 2]
-    boxes[:, 3] = boxes[:, 1] + boxes[:, 3]          # (N, 4) (hmin, wmin, hmax, wmax)
+    boxes[:, 3] = boxes[:, 1] + boxes[:, 3]               # (N, 4) (xmin, ymin, xmax, ymax)
+    
+    for n in range(len(boxes)):
+        boxes[n, 2] = boxes[n, 2] if boxes[n, 2] < 320 else 319
+        boxes[n, 3] = boxes[n, 3] if boxes[n, 3] < 200 else 199
+        
+    
 
     # CAPTCHA
     captcha_list = []
@@ -97,10 +112,20 @@ def pipeline(captcha: torch.Tensor,
              model_rec: nn.Module,
              device,
              args,
+             index,
              ):
-    captcha_mask = segment(captcha, model_seg, device)                       # (3, H, W), binary
-    captcha_seq, boxes_seq = crop_segmentation(captcha, captcha_mask, args)  # (N, 3, H, W), (N, 4)
-    prediction = recognize(captcha_seq, label, model_rec, device)            # (N)
+    captcha_mask = segment(captcha, model_seg, device)                       
+    captcha_mask[captcha_mask > 0] = 1                                            # (3, H, W), binary
+    
+    save_image(captcha_mask, f"results/{index:04}_mask.png")
+    
+    captcha_seq, boxes_seq = crop_segmentation(captcha_mask, captcha_mask, args)  # (N, 3, H, W), (N, 4)
+    print(boxes_seq)
+   
+    for i in range(len(boxes_seq)): 
+        save_image(captcha_seq[i], f"results/{index:04}_char_{i}.png")
+        
+    prediction = recognize(captcha_seq, label, model_rec, device)                 # (N)
 
     return prediction, boxes_seq
 
@@ -138,9 +163,9 @@ def test():
         info_file = open(info_file)
         data_info = json.load(info_file)
 
-    elif args.captcha_file and args.label:
+    elif args.captcha_file and args.captcha_label:
         data_info = [{'image_path': args.captcha_file,
-                      'word_label_id': [encoder[word] for word in args.label]}]
+                      'word_label_id': [encoder[word] for word in args.captcha_label]}]
 
     else:
         raise ValueError("either dir or file should not be None")
@@ -148,7 +173,9 @@ def test():
     # Predict
     transform = transforms.Compose([transforms.Resize((args.H, args.W)),
                                     transforms.ToTensor()])
+    t = 0
     for sample in tqdm(data_info):
+        t += 1
         # load image
         captcha_path = os.path.join(args.captcha_dir, 'test', sample['image_path']) if args.captcha_dir else sample['image_path']
         captcha_image = transform(Image.open(captcha_path))[0: 3]  # (3, H, W)
@@ -158,15 +185,14 @@ def test():
         label = torch.tensor(label).long()
 
         # predict the position and the character
-        prediction, boxes = pipeline(captcha_image, label, model_seg, model_rec, device, args)
+        prediction, boxes = pipeline(captcha_image, label, model_seg, model_rec, device, args, t)
 
         # decode from token
-        for token in prediction:
-            print(token)
 
         prediction = [decoder[str(token.item())] for token in prediction]
-
-        recaptcha = draw_bounding_boxes(captcha_image, boxes, label=prediction)
+        captcha_image = torch.tensor(255 * captcha_image, dtype=torch.uint8)
+        #print(prediction)
+        recaptcha = torch.tensor(draw_bounding_boxes(captcha_image, boxes, labels=prediction, font='data/font/simsun.ttc', font_size=20), dtype=torch.float) / 255.0
 
         if not os.path.exists('./results'):
             os.makedirs('./results')

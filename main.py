@@ -8,7 +8,7 @@ import torch.nn as nn
 import torchvision
 import torch.nn.functional as F
 
-from model.resnet import resnet50 as ResNet
+from model.resnet import resnet18 as ResNet
 from model.unet import UNet
 from utils import *
 from dataloader import CAPTCHA
