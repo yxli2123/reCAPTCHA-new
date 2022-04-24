@@ -1,6 +1,5 @@
 import argparse
 import os
-from char_sim import similarity
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -17,13 +16,14 @@ import math
 class LabelWeightedCrossEntropyLoss(nn.Module):
     
     def __init__(self, alpha=10, beta=3):
+        super().__init__()
         self.alpha = alpha
         self.beta = beta
 
     def forward(self, input, target):
         alpha_target = self.alpha * target ** self.beta
-        p_gt = alpha_target / torch.sum(alpha_target, dim=1)
-        return torch.sum(-p_gt * F.log_softmax(input), dim=1) 
+        p_gt = alpha_target / torch.sum(alpha_target, dim=1, keepdim=True)
+        return torch.sum(-p_gt * F.log_softmax(input, dim=1), dim=1).mean()
 
 
 def main():
@@ -47,8 +47,8 @@ def main():
     parser.add_argument('--H',              type=int,   default=200)
     parser.add_argument('--W',              type=int,   default=320)
     parser.add_argument('--char_size',      type=int,   default=50)
-    parser.add_argument('--char_sim',       type=bool,  default=False,              action='store_true')
-    parser.add_argument('--char_sim_file',   type=str,   default='similarity_3000.pt')
+    parser.add_argument('--char_sim',       type=bool,  default=False)
+    parser.add_argument('--char_sim_file',  type=str,   default='similarity_3000.pt')
 
 
 

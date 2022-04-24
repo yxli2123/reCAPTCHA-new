@@ -84,7 +84,12 @@ def evaluate(dataloader, model, device, criterion, args, similarity_mat=None):
         loss_list.append(loss)
 
         # Predict
-        y_pr = torch.argmax(y_pr, dim=1)
+        if 'segmentation' in args.task:
+            y_pr = torch.argmax(y_pr, dim=1)
+        else:
+            y_candidate = y_pr[:, y_gt]              # (N, num_cls) --> (N, N)
+            y_pr = torch.argmax(y_candidate, dim=1)  # (N, 1)
+            y_pr = y_gt[y_pr]                        # (N, 1)
 
         y_pr_list.append(y_pr)
         y_gt_list.append(y_gt)

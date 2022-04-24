@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 
 python main.py \
---task recognition_bg \
+--task recognition_clean \
 --mode train \
---run_name bg_bs32 \
+--run_name bs64_sim \
 --data_dir data/captcha_click \
---epochs 50 \
---batch_size 32 \
---train_iter 45000 \
---ckpt exp_log/recognition_bg/bg_bs32/45000.pth \
+--epochs 80 \
+--char_sim True \
+--batch_size 64 \
 --valid_interval 5000 \
 --save_interval 5000 \
---print_interval 1000
+--print_interval 500
 
