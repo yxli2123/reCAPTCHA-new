@@ -15,13 +15,13 @@ import math
 
 class LabelWeightedCrossEntropyLoss(nn.Module):
     
-    def __init__(self, alpha=10, beta=3):
+    def __init__(self, alpha=3, thr=0.4):
         super().__init__()
         self.alpha = alpha
-        self.beta = beta
+        self.thr = thr
 
     def forward(self, input, target):
-        alpha_target = self.alpha * target ** self.beta
+        alpha_target = (target * (target > self.thr)) ** self.alpha
         p_gt = alpha_target / torch.sum(alpha_target, dim=1, keepdim=True)
         return torch.sum(-p_gt * F.log_softmax(input, dim=1), dim=1).mean()
 
